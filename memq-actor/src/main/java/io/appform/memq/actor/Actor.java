@@ -177,6 +177,7 @@ public class Actor<M extends Message> implements AutoCloseable {
                     () -> this.validationHandler.test(message, messageMeta));
             if (!valid) {
                 log.debug("Message validation failed for message: {}", message);
+                return false;
             }
             status = this.retryer.execute(() -> {
                 messageMeta.incrementAttempt();

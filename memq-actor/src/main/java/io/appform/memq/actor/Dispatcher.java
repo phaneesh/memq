@@ -22,7 +22,7 @@ interface Dispatcher<M extends Message> extends AutoCloseable {
         val inFlight = mailbox.getInFlight();
         //Find new messages, respecting insertion order and max concurrency
         int considered = 0;
-        List<InternalMessage<M>> newMessages = null;
+        List<InternalMessage<M>> newMessages = new ArrayList<>(mailbox.getMaxConcurrency());
         for (val entry : mailbox.getMessages().entrySet()) {
             if (considered >= mailbox.getMaxConcurrency()) {
                 break;
@@ -30,14 +30,11 @@ interface Dispatcher<M extends Message> extends AutoCloseable {
             considered++;
             val id = entry.getKey();
             if (!inFlight.contains(id)) {
-                if (newMessages == null) {
-                    newMessages = new ArrayList<>();
-                }
                 inFlight.add(id);
                 newMessages.add(entry.getValue());
             }
         }
-        if (newMessages == null || newMessages.isEmpty()) {
+        if (newMessages.isEmpty()) {
             if (inFlight.size() == mailbox.getMaxConcurrency()) {
                 log.warn("Reached max concurrency:{}. Ignoring consumption till inflight messages are consumed",
                         mailbox.getMaxConcurrency());
@@ -47,6 +44,10 @@ interface Dispatcher<M extends Message> extends AutoCloseable {
             }
             return;
         }
+        dispatchNew(mailbox, newMessages);
+    }
+
+    default void dispatchNew(final Mailbox<M> mailbox, List<InternalMessage<M>> newMessages) {
         List.copyOf(newMessages).forEach(internalMessage -> mailbox.getActor().getExecutorService().submit(() -> {
             val id = internalMessage.id();
             try {
