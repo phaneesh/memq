@@ -1,6 +1,5 @@
 package io.appform.memq.actor;
 
-import com.google.common.base.Preconditions;
 import io.appform.memq.observer.ActorObserver;
 import io.appform.memq.observer.ActorObserverContext;
 import io.appform.memq.observer.ObserverMessageMeta;
@@ -64,9 +63,12 @@ public class Actor<M extends Message> implements AutoCloseable {
         // Switch ensures validation is performed for all dispatcher types.
         // Adding a new DispatcherType will cause a compile error here if not handled.
         switch (dispatcherType){
-            case SYNC ->
-                    Preconditions.checkArgument( maxConcurrencyPerPartition == maxSizePerPartition,
-                    "Max Queue size and max concurrency has to be same for sync dispatcher");
+            case SYNC -> {
+                if (maxConcurrencyPerPartition != maxSizePerPartition) {
+                    throw new IllegalArgumentException(
+                            "Max Queue size and max concurrency has to be same for sync dispatcher");
+                }
+            }
             case ASYNC_ISOLATED -> {
                 // No-op: ASYNC_ISOLATED dispatcher has no specific validation requirements
             }
