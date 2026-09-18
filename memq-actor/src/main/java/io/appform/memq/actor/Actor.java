@@ -136,11 +136,11 @@ public class Actor<M extends Message> implements AutoCloseable {
     }
 
    void processWithObserver(final InternalMessage<M> internalMessage) {
-        val observerMessageMeta = new ObserverMessageMeta(internalMessage.getId(), internalMessage.getPublishedAt(),
-                internalMessage.getValidTill());
+        val observerMessageMeta = new ObserverMessageMeta(internalMessage.id(), internalMessage.publishedAt(),
+                internalMessage.validTill());
         this.rootObserver.execute(ActorObserverContext.builder()
                         .messageMeta(observerMessageMeta)
-                        .message(internalMessage.getMessage())
+                        .message(internalMessage.message())
                         .operation(ActorOperation.CONSUME)
                         .actorName(this.name)
                         .build(),
@@ -160,12 +160,12 @@ public class Actor<M extends Message> implements AutoCloseable {
     }
 
     private boolean process(final InternalMessage<M> internalMessage) {
-        val id = internalMessage.getId();
-        val message = internalMessage.getMessage();
+        val id = internalMessage.id();
+        val message = internalMessage.message();
         var status = false;
-        var messageMeta = new MessageMeta(internalMessage.getPublishedAt(),
-                internalMessage.getValidTill(),
-                internalMessage.getHeaders());
+        var messageMeta = new MessageMeta(internalMessage.publishedAt(),
+                internalMessage.validTill(),
+                internalMessage.headers());
         try {
             val valid = this.rootObserver.execute(ActorObserverContext.builder()
                             .message(message)
@@ -175,25 +175,22 @@ public class Actor<M extends Message> implements AutoCloseable {
                     () -> this.validationHandler.test(message, messageMeta));
             if (!valid) {
                 log.debug("Message validation failed for message: {}", message);
-                return false;
             }
-            else {
-                status = this.retryer.execute(() -> {
-                    messageMeta.incrementAttempt();
-                    return this.consumerHandler.test(message, messageMeta);
-                });
-                if (!status) {
-                    log.debug("Consumer failed for message: {}", message);
-                    this.rootObserver.execute(ActorObserverContext.builder()
-                                    .message(message)
-                                    .operation(ActorOperation.SIDELINE)
-                                    .actorName(this.name)
-                                    .build(),
-                            () -> {
-                                this.sidelineHandler.accept(message, messageMeta);
-                                return true;
-                            });
-                }
+            status = this.retryer.execute(() -> {
+                messageMeta.incrementAttempt();
+                return this.consumerHandler.test(message, messageMeta);
+            });
+            if (!status) {
+                log.debug("Consumer failed for message: {}", message);
+                this.rootObserver.execute(ActorObserverContext.builder()
+                                .message(message)
+                                .operation(ActorOperation.SIDELINE)
+                                .actorName(this.name)
+                                .build(),
+                        () -> {
+                            this.sidelineHandler.accept(message, messageMeta);
+                            return true;
+                        });
             }
         } catch (Exception e) {
             log.error("Error processing message : " + id, e);

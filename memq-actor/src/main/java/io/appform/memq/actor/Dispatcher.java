@@ -1,12 +1,11 @@
 package io.appform.memq.actor;
 
-import com.google.common.collect.Sets;
 import lombok.val;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 
 interface Dispatcher<M extends Message> extends AutoCloseable {
 
@@ -20,14 +19,26 @@ interface Dispatcher<M extends Message> extends AutoCloseable {
 
     //Always executed inside mailbox lock
     default void dispatch(final Mailbox<M> mailbox) {
-        //Find new messages
-        val newInOrderedMessages = mailbox.getMessages().keySet()
-                .stream()
-                .limit(mailbox.getMaxConcurrency())
-                .collect(Collectors.toSet());
-        val newMessageIds = Set.copyOf(Sets.difference(newInOrderedMessages, mailbox.getInFlight()));
-        if (newMessageIds.isEmpty()) {
-            if(mailbox.getInFlight().size() == mailbox.getMaxConcurrency()) {
+        val inFlight = mailbox.getInFlight();
+        //Find new messages, respecting insertion order and max concurrency
+        int considered = 0;
+        List<InternalMessage<M>> newMessages = null;
+        for (val entry : mailbox.getMessages().entrySet()) {
+            if (considered >= mailbox.getMaxConcurrency()) {
+                break;
+            }
+            considered++;
+            val id = entry.getKey();
+            if (!inFlight.contains(id)) {
+                if (newMessages == null) {
+                    newMessages = new ArrayList<>();
+                }
+                inFlight.add(id);
+                newMessages.add(entry.getValue());
+            }
+        }
+        if (newMessages == null || newMessages.isEmpty()) {
+            if (inFlight.size() == mailbox.getMaxConcurrency()) {
                 log.warn("Reached max concurrency:{}. Ignoring consumption till inflight messages are consumed",
                         mailbox.getMaxConcurrency());
             }
@@ -36,12 +47,8 @@ interface Dispatcher<M extends Message> extends AutoCloseable {
             }
             return;
         }
-        mailbox.getInFlight().addAll(newMessageIds);
-        val messagesToBeDelivered = newMessageIds.stream()
-                .map(mailbox.getMessages()::get)
-                .toList();
-        messagesToBeDelivered.forEach(internalMessage -> mailbox.getActor().getExecutorService().submit(() -> {
-            val id = internalMessage.getId();
+        List.copyOf(newMessages).forEach(internalMessage -> mailbox.getActor().getExecutorService().submit(() -> {
+            val id = internalMessage.id();
             try {
                 mailbox.getActor().processWithObserver(internalMessage);
             }
