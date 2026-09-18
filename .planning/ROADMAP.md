@@ -6,7 +6,7 @@ Single-phase mechanical upgrade: bump build to Java 21, apply behavior-preservin
 
 ## Phases
 
-- [ ] **Phase 1: Java 21 Upgrade & Modernization** - Upgrade build to 21, modernize code, optimize, verify no functional change
+- [x] **Phase 1: Java 21 Upgrade & Modernization** - Upgrade build to 21, modernize code, optimize, verify no functional change
 
 ## Phase Details
 
@@ -23,9 +23,9 @@ Single-phase mechanical upgrade: bump build to Java 21, apply behavior-preservin
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Upgrade build to Java 21 and switch compiler config to --release 21
-- [ ] 01-02: Apply Java 21 language features and code-review improvements (behavior-preserving)
-- [ ] 01-03: Performance optimizations and final verification on JDK 21
+- [x] 01-01: Upgrade build to Java 21 and switch compiler config to --release 21
+- [x] 01-02: Apply Java 21 language features and code-review improvements (behavior-preserving)
+- [x] 01-03: Performance optimizations and final verification on JDK 21
 
 ## Progress
 
@@ -34,4 +34,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Java 21 Upgrade & Modernization | 0/3 | Not started | - |
+| 1. Java 21 Upgrade & Modernization | 3/3 | Complete | 2026-09-18 |
